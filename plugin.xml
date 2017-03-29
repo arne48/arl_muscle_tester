@@ -1,0 +1,17 @@
+<library path="src">
+  <class name="ARL Muscle Tester" type="arl_muscle_tester.muscle_tester.MuscleTester" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A Python GUI plugin for easily testing the muscles of a robot.
+    </description>
+    <qtgui>
+      <group>
+        <label>Robot Tools</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins related to robot tools.</statustip>
+      </group>
+      <label>Muscle Tester</label>
+      <icon type="theme">applications-other</icon>
+      <statustip>A Python GUI plugin for testing the robot's muscles.</statustip>
+    </qtgui>
+  </class>
+</library>
