@@ -24,10 +24,13 @@
    </property>
   </widget>
   <widget class="QPushButton" name="activationButton">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="geometry">
     <rect>
-     <x>590</x>
-     <y>420</y>
+     <x>580</x>
+     <y>450</y>
      <width>251</width>
      <height>61</height>
     </rect>
@@ -47,9 +50,6 @@
    </property>
    <property name="maximum">
     <number>100</number>
-   </property>
-   <property name="minimum">
-    <number>0</number>
    </property>
    <property name="sliderPosition">
     <number>10</number>
@@ -95,6 +95,72 @@
    </property>
    <property name="text">
     <string>Muscle Topics</string>
+   </property>
+  </widget>
+  <widget class="QWidget" name="horizontalLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>449</x>
+     <y>59</y>
+     <width>551</width>
+     <height>331</height>
+    </rect>
+   </property>
+   <layout class="QHBoxLayout" name="data_plot_layout"/>
+  </widget>
+  <widget class="QRadioButton" name="activationScaleButton">
+   <property name="geometry">
+    <rect>
+     <x>570</x>
+     <y>410</y>
+     <width>117</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Activation</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QRadioButton" name="pressureScaleButton">
+   <property name="geometry">
+    <rect>
+     <x>700</x>
+     <y>410</y>
+     <width>117</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Pressure</string>
+   </property>
+  </widget>
+  <widget class="QRadioButton" name="tensionScaleButton">
+   <property name="geometry">
+    <rect>
+     <x>840</x>
+     <y>410</y>
+     <width>117</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Tension</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_2">
+   <property name="geometry">
+    <rect>
+     <x>490</x>
+     <y>410</y>
+     <width>71</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Scale for:</string>
    </property>
   </widget>
  </widget>
