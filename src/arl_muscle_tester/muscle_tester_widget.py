@@ -1,17 +1,30 @@
 #!/usr/bin/env python
-#########################################
-# Made heavy usage of the rqt_plot code #
-#   Thanks to the original creators     #
-#########################################
+
+# Copyright (c) 2017, Various Authors of the rqt_common_plugins
+# Copyright (c) 2017, Arne Hitzmann
+# All rights reserved.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 
 import os
-import sys
 import xmlrpclib
 
 import rospy
 import rospkg
 import roslib
 from std_msgs.msg import Float64
+from arl_hw_msgs.msg import Muscle
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import Qt, qWarning, Signal, QTimer
@@ -22,65 +35,38 @@ from . rosplot import ROSData, RosPlotException
 from rqt_py_common import topic_helpers
 
 
-def get_plot_fields(topic_name):
+def get_topic_properties(topic_name):
     topic_type, real_topic, _ = topic_helpers.get_topic_type(topic_name)
     if topic_type is None:
         message = "topic %s does not exist" % (topic_name)
         return [], message
-    field_name = topic_name[len(real_topic) + 1:]
 
     slot_type, is_array, array_size = roslib.msgs.parse_type(topic_type)
     field_class = roslib.message.get_message_class(slot_type)
 
-    fields = [f for f in field_name.split('/') if f]
+    return field_class, slot_type, is_array, array_size
 
-    for field in fields:
-        # parse the field name for an array index
-        try:
-            field, _, field_index = roslib.msgs.parse_type(field)
-        except roslib.msgs.MsgSpecException:
-            message = "invalid field %s in topic %s" % (field, real_topic)
-            return [], message
 
-        if field not in getattr(field_class, '__slots__', []):
-            message = "no field %s in topic %s" % (field_name, real_topic)
-            return [], message
-        slot_type = field_class._slot_types[field_class.__slots__.index(field)]
-        slot_type, slot_is_array, array_size = roslib.msgs.parse_type(slot_type)
-        is_array = slot_is_array and field_index is None
+def get_plot_fields(topic_name):
+    field_class, slot_type, is_array, array_size = get_topic_properties(topic_name)
 
-        field_class = topic_helpers.get_type_class(slot_type)
-
-    if field_class in (int, float, bool):
-        topic_kind = 'boolean' if field_class == bool else 'numeric'
-        if is_array:
-            if array_size is not None:
-                message = "topic %s is fixed-size %s array" % (topic_name, topic_kind)
-                return ["%s[%d]" % (topic_name, i) for i in range(array_size)], message
-            else:
-                message = "topic %s is variable-size %s array" % (topic_name, topic_kind)
-                return [], message
+    if not roslib.msgs.is_valid_constant_type(slot_type):
+        numeric_fields = []
+        for i, slot in enumerate(field_class.__slots__):
+            slot_type = field_class._slot_types[i]
+            slot_type, is_array, array_size = roslib.msgs.parse_type(slot_type)
+            slot_class = topic_helpers.get_type_class(slot_type)
+            if slot_class in (int, float) and not is_array:
+                numeric_fields.append(slot)
+        message = ""
+        if len(numeric_fields) > 0:
+            message = "%d plottable fields in %s" % (len(numeric_fields), topic_name)
         else:
-            message = "topic %s is %s" % (topic_name, topic_kind)
-            return [topic_name], message
+            message = "No plottable fields in %s" % (topic_name)
+        return ["%s/%s" % (topic_name, f) for f in numeric_fields], message
     else:
-        if not roslib.msgs.is_valid_constant_type(slot_type):
-            numeric_fields = []
-            for i, slot in enumerate(field_class.__slots__):
-                slot_type = field_class._slot_types[i]
-                slot_type, is_array, array_size = roslib.msgs.parse_type(slot_type)
-                slot_class = topic_helpers.get_type_class(slot_type)
-                if slot_class in (int, float) and not is_array:
-                    numeric_fields.append(slot)
-            message = ""
-            if len(numeric_fields) > 0:
-                message = "%d plottable fields in %s" % (len(numeric_fields), topic_name)
-            else:
-                message = "No plottable fields in %s" % (topic_name)
-            return ["%s/%s" % (topic_name, f) for f in numeric_fields], message
-        else:
-            message = "Topic %s is not numeric" % (topic_name)
-            return [], message
+        message = "Topic %s is not numeric" % (topic_name)
+        return [], message
 
 
 class MuscleTesterView(QGraphicsView):
@@ -225,7 +211,10 @@ class MuscleTesterWidget(QWidget):
                 controller_topics = []
 
                 for topic in published_topics:
-                    if topic.split('/')[1].startswith('muscle_'):
+                    # ensure that topic has the right name and type to be a
+                    # topic of a MuscleController
+                    field_class, _, _, _ = get_topic_properties(topic)
+                    if topic.split('/')[-1] == 'state' and field_class._type == 'arl_hw_msgs/Muscle':
                         controller_topics.append(topic.split('/')[1])
 
                 unique_controller_topics = sorted(set(controller_topics))
@@ -238,7 +227,7 @@ class MuscleTesterWidget(QWidget):
             else:
                 rospy.logerr("Communication with ROS Master failed")
         except:
-            sys.exit(1)
+            rospy.logerr("Something went wrong while discovering muscles, maybe no muscles present")
 
     def _handle_activation_button_press(self):
         self._activation_pub.publish(self.activation_amplitude)
