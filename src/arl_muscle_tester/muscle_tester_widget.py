@@ -24,7 +24,7 @@ import rospy
 import rospkg
 import roslib
 from std_msgs.msg import Float64
-from arl_hw_msgs.msg import Muscle
+from arl_hw_msgs.msg import MusculatureCommand, MuscleCommand
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import Qt, qWarning, Signal, QTimer
@@ -93,6 +93,7 @@ class MuscleTesterWidget(QWidget):
         self._start_time = rospy.get_time()
 
         self._ros_master = xmlrpclib.ServerProxy(os.environ['ROS_MASTER_URI'])
+        self._activation_pub = rospy.Publisher('/musculature/command', MusculatureCommand, queue_size=10)
 
         self.setObjectName('MuscleTesterWidget')
 
@@ -107,8 +108,6 @@ class MuscleTesterWidget(QWidget):
         self.amplitudeLabel.setNum(self.activation_amplitude)
 
         self._update_muscle_topics()
-
-        self._activation_pub = None
 
     def switch_data_plot_widget(self, data_plot):
         self.enable_timer(enabled=False)
@@ -229,11 +228,29 @@ class MuscleTesterWidget(QWidget):
         except:
             rospy.logerr("Something went wrong while discovering muscles, maybe no muscles present")
 
+    def _create_musculature_msg(self, pressure=None, activation=None):
+        musculature_command = MusculatureCommand()
+        musculature_command.header.stamp = rospy.get_rostime()
+        musculature_command.header.frame_id = '0'
+        muscle_command = MuscleCommand()
+        muscle_command.name = self.selected_muscle_controller.replace('_controller', '')
+
+        if activation is not None:
+            muscle_command.activation = activation
+            muscle_command.control_mode = MuscleCommand.CONTROL_MODE_BY_ACTIVATION
+
+        if pressure is not None:
+            muscle_command.pressure = pressure
+            muscle_command.control_mode = MuscleCommand.CONTROL_MODE_BY_PRESSURE
+
+        musculature_command.muscle_commands.append(muscle_command)
+        return musculature_command
+
     def _handle_activation_button_press(self):
-        self._activation_pub.publish(self.activation_amplitude)
+        self._activation_pub.publish(self._create_musculature_msg(None, self.activation_amplitude))
 
     def _handle_activation_button_release(self):
-        self._activation_pub.publish(-0.5)
+        self._activation_pub.publish(self._create_musculature_msg(None, -0.5))
 
     def _handle_slider_change(self):
         self.activation_amplitude = 0.01 * self.amplitudeSlider.sliderPosition()
@@ -243,6 +260,4 @@ class MuscleTesterWidget(QWidget):
         self.activationButton.setEnabled(True)
         self.clean_up_subscribers()
         self.selected_muscle_controller = self.muscleList.currentItem().text()
-        self._activation_pub = rospy.Publisher('/' + self.selected_muscle_controller + '/activation_command', Float64,
-                                               queue_size=1)
         self.add_topic('/' + self.selected_muscle_controller + '/state')
